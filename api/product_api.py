@@ -71,6 +71,8 @@ def search_products_api(name: str = None,
         result = search_products(conn, cursor, name, tag, customer, barcode, ref_num)
         logging.info(f"Search successful")
         return [dict(row) for row in result]
+    except HTTPException:
+        raise
     except sqlite3.OperationalError as e:
         logging.error(f"Database operation error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="A database operation failed.")
