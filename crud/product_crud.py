@@ -3,7 +3,7 @@ import logging
 from fastapi import HTTPException
 from crud.image_crud import add_image
 from crud.customer_crud import add_customer, search_by_customer
-from crud.tag_crud import add_tag
+from crud.tag_crud import add_tag, search_by_tag
 from crud.quote_crud import add_quote
 from crud.misc_crud import search_by_barcode, search_by_ref_num
 from crud.utils import raise_404_if_not_found, raise_404_if_not_empty
