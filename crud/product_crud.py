@@ -57,8 +57,8 @@ def add_product(conn, cursor, product: ProductCreate):
     }
 
 def delete_product(conn, cursor, product_id):
-    # Soft delete product by setting deleted = 1
-    cursor.execute("UPDATE product_manager SET deleted = 1 WHERE id = ?", (product_id,))
+    # Switched to hard delete
+    cursor.execute("DELETE FROM product_manager WHERE id = ?", (product_id,))
     raise_value_error_if_not_found(cursor, msg = "Product not found")
 
 def search_products(conn, cursor, name=None, tag=None, customer=None, barcode=None, ref_num=None):
