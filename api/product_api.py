@@ -9,12 +9,15 @@ router = APIRouter()
 
 @router.post("/products/", response_model=Product, status_code = 201)
 def create_product_endpoint(product: ProductCreate, db = Depends(get_db)):
+    """404 if not found, 409 on duplication"""
     conn, cursor = db
     try:
         created_product = add_product(conn, cursor, product)
         conn.commit()
         logging.info(f"Product created with ref_num: {product.ref_num}")
         return format_product(conn, cursor, created_product["id"])
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
     except sqlite3.IntegrityError as e:
         logging.warning(f"Duplicate product ref_num: {product.ref_num}")
         raise HTTPException(status_code=409, detail="Product with this ref_num already exists.")
@@ -32,8 +35,8 @@ def delete_product_api(product_id: int, db: tuple = Depends(get_db)):
         delete_product(conn, cursor, product_id)
         conn.commit()
         logging.info(f"Deleted product with ID: {product_id}")
-    except HTTPException:
-        raise
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
     except sqlite3.OperationalError as e:
         logging.error(f"Database operation error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="A database operation failed.")
@@ -45,13 +48,13 @@ def delete_product_api(product_id: int, db: tuple = Depends(get_db)):
 def edit_product_api(product_id: int, updates: ProductUpdate, db: tuple = Depends(get_db)):
     conn, cursor = db
     try:
-        edit_product(conn, cursor, product_id, **updates.dict(exclude_unset = True))
+        edit_product(conn, cursor, product_id, **updates.model_dump(exclude_unset = True))
         result = format_product(conn, cursor, product_id)
         conn.commit()
         logging.info(f"Edited product with ID: {product_id}")
         return result
-    except HTTPException:
-        raise
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
     except sqlite3.OperationalError as e:
         logging.error(f"Database operation error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="A database operation failed.")
@@ -71,8 +74,8 @@ def search_products_api(name: str = None,
         result = search_products(conn, cursor, name, tag, customer, barcode, ref_num)
         logging.info(f"Search successful")
         return [dict(row) for row in result]
-    except HTTPException:
-        raise
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
     except sqlite3.OperationalError as e:
         logging.error(f"Database operation error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="A database operation failed.")
@@ -87,8 +90,8 @@ def get_product_api(product_id: int, db: tuple = Depends(get_db)):
         result = format_product(conn, cursor, product_id)
         logging.info(f"Searched product with ID: {product_id}")
         return result
-    except HTTPException:
-        raise
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:
         logging.error(f"Failed to retrieve product: {e}", exc_info = True)
         raise HTTPException(status_code=500, detail=f"Failed to retrieve product: {e}")

@@ -1,7 +1,7 @@
 from models import *
 import logging
 from fastapi import HTTPException
-from crud.utils import raise_404_if_not_found, raise_404_if_not_empty
+from crud.utils import raise_value_error_if_not_found, raise_value_error_if_empty
 
 logging.basicConfig(level=logging.INFO)
 
@@ -12,12 +12,11 @@ def add_image(conn, cursor, product_id, img):
                         [(product_id, i) for i in img])
     return {"img": img}
     
-def delete_image(conn, cursor, product_id, delete_img):
-    # Delete one particular img path given product_id
-    cursor.execute("DELETE FROM product_images WHERE product_id = ? AND img = ?",
-                        (product_id, delete_img))
-    raise_404_if_not_found(cursor, msg = "Image was not linked to this product")
-    return delete_img
+def delete_image(conn, cursor, image_id):
+    cursor.execute("DELETE FROM product_images WHERE id = ?",
+                        (image_id,))
+    raise_value_error_if_not_found(cursor, msg = "Image was not linked to this product")
+    return image_id
 
 def list_images(cursor):
     cursor.execute("SELECT * FROM product_images")

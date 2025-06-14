@@ -149,7 +149,7 @@ def test_create_images_api(test_client):
 
     assert response.status_code == 201
     data = response.json()
-    assert "New image.jpg" in data["imgs"]
+    assert "New image.jpg" in data["imgs"][1]["img"]
     print("STATUS:", response.status_code)
     print("BODY:", response.text)
 
@@ -161,7 +161,7 @@ def test_create_customers_api(test_client):
 
     assert response.status_code == 201
     data = response.json()
-    assert "New customer" in data["customers"]
+    assert "New customer" in data["customers"][1]["customer_name"]
     print("STATUS:", response.status_code)
     print("BODY:", response.text)
 
@@ -173,7 +173,7 @@ def test_create_tags_api(test_client):
 
     assert response.status_code == 201
     data = response.json()
-    assert "New tag" in data["tags"]
+    assert "New tag" in data["tags"][1]["tag_name"]
     print("STATUS:", response.status_code)
     print("BODY:", response.text)
 
@@ -188,9 +188,9 @@ def test_create_quotes_api(test_client):
 
     assert response.status_code == 201
     data = response.json()
-    assert "CustomerA" in data["quote"]
-    assert data["quote"]["CustomerA"]["quote"] == 13
-    assert data["quote"]["CustomerA"]["remark"] == "yes"
+    assert "CustomerA" in data["quote"][1]["customer_name"]
+    assert data["quote"][1]["quote"] == 13
+    assert data["quote"][1]["quote_remark"] == "yes"
     print("STATUS:", response.status_code)
     print("BODY:", response.text)
 
@@ -216,7 +216,7 @@ def test_delete_image_api(test_client_and_db):
     payload = sample_product_payload()
     add_response = client.post("/products/", json = payload)
     product_id = add_response.json()["id"]
-    image_path = add_response.json()["imgs"][0]
+    image_path = add_response.json()["imgs"][0]["img"]
     with conn:
         image_id = cursor.execute("SELECT id FROM product_images WHERE img = ?", (image_path,)).fetchone()[0]
 
@@ -234,7 +234,7 @@ def test_delete_customer_from_product_api(test_client_and_db):
     payload = sample_product_payload()
     add_response = client.post("/products/", json = payload)
     product_id = add_response.json()["id"]
-    customer_name = add_response.json()["customers"][0]
+    customer_name = add_response.json()["customers"][0]["customer_name"]
     with conn:
         customer_id = cursor.execute("""SELECT id FROM customers WHERE customer_name =?""",
                                      (customer_name,)).fetchone()[0]
@@ -253,7 +253,7 @@ def test_delete_tag_from_product_api(test_client_and_db):
     payload = sample_product_payload()
     add_response = client.post("/products/", json = payload)
     product_id = add_response.json()["id"]
-    tag_name = add_response.json()["tags"][0]
+    tag_name = add_response.json()["tags"][0]["tag_name"]
     with conn:
         tag_id = cursor.execute("""SELECT id FROM tags WHERE tag_name =?""",
                                      (tag_name,)).fetchone()[0]
@@ -274,16 +274,7 @@ def test_delete_quote_api(test_client_and_db):
     payload = sample_product_payload()
     add_response = client.post("/products/", json = payload)
     product_id = add_response.json()["id"]
-    quote_customer = list(add_response.json()["quote"].keys())[0]
-    quote_value = add_response.json()["quote"][quote_customer]["quote"]
-    quote_remark = add_response.json()["quote"][quote_customer]["remark"]
-
-    with conn:
-        quote_id = cursor.execute("""SELECT q.id
-                                  FROM quotes q
-                                  JOIN customers c ON q.customer_id = c.id
-                                  WHERE c.customer_name = ? AND q.quote = ? AND q.quote_remark = ?""",
-                                    (quote_customer, quote_value, quote_remark)).fetchone()[0]
+    quote_id = add_response.json()["quote"][0]["quote_id"]
                                 
     response = client.delete(f"/products/{product_id}/quotes/{quote_id}")
     assert response.status_code == 204
@@ -346,7 +337,8 @@ def test_edit_tag_api(test_client_and_db):
     response = client.patch(f"/tags/{tag_id}", json = {"new_name": "xx"})
     assert response.status_code == 200
     data = response.json()
-    assert "xx" in data["tags"]
+    assert data["id"] == tag_id
+    assert data["tag_name"] == "xx"
 
     print("STATUS:", response.status_code)
     print("BODY:", response.text)
@@ -362,7 +354,8 @@ def test_edit_customer_api(test_client_and_db):
     response = client.patch(f"/customers/{customer_id}", json = {"new_name": "xx"})
     assert response.status_code == 200
     data = response.json()
-    assert "xx" in data["customers"]
+    assert data["id"] == customer_id
+    assert data["customer_name"] == "xx"
 
     print("STATUS:", response.status_code)
     print("BODY:", response.text)
@@ -371,24 +364,17 @@ def test_edit_customer_api(test_client_and_db):
 def test_edit_quote_api(test_client_and_db):
     client, conn, cursor = test_client_and_db
     payload = sample_product_payload()
-    client.post("/products/", json = payload)
-    customer_name = list(payload["quote"].keys())[0]
-    original_quote = payload["quote"][customer_name]
-    original_quote_value = original_quote["quote"]
-    original_quote_remark = original_quote["remark"]
-
-    quote_id = cursor.execute("""SELECT q.id
-                            FROM customers c
-                            JOIN quotes q ON q.customer_id = c.id
-                            WHERE c.customer_name = ? AND q.quote = ? AND q.quote_remark = ? """,
-                            (customer_name, original_quote_value, original_quote_remark)).fetchone()[0] 
-    updated_payload = {"quote": 10, "remark": "updated remark" }
+    add_response = client.post("/products/", json = payload)
+    product_data = add_response.json()
+    quote_id = product_data["quote"][0]["quote_id"]
+  
+    updated_payload = {"quote": 10, "quote_remark": "updated remark" }
 
     response = client.patch(f"/quotes/{quote_id}", json = updated_payload)
     assert response.status_code == 200
     data = response.json()
-    assert data["quotes"][customer_name]["quote"] == 10
-    assert data["quotes"][customer_name]["remark"] == "updated remark"
+    assert data["quote"] == 10
+    assert data["quote_remark"] == "updated remark"
 
     # Partial data test
     partial_payload = {"quote": 999.99}
@@ -431,7 +417,7 @@ def test_list_tag_api(test_client):
     print("BODY:", response.text)
 
     assert response.status_code == 200
-    data = response.json()["tags"]
+    data = response.json()[0]["tag_name"]
     assert "summer" in data
 
 def test_list_customer_api(test_client):
@@ -442,7 +428,7 @@ def test_list_customer_api(test_client):
     print("BODY:", response.text)
 
     assert response.status_code == 200
-    data = response.json()["customers"]
+    data = response.json()[0]["customer_name"]
     assert "CustomerA" in data
 
 # ========== MISC ==========

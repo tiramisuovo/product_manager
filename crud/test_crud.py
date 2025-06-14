@@ -128,25 +128,25 @@ def test_delete_product(test_db):
 
 def test_delete_image(test_db):
     conn, cursor = test_db
-    delete_image(conn, cursor, 1, "img1.jpg")
+    delete_image(conn, cursor, 1)
     result = list_images(cursor)
     assert len(result) == 0
 
 def test_delete_quote(test_db):
     conn, cursor = test_db
-    delete_quote(conn, cursor, 1, "Test Customer", round (1.1, 2), "test")
+    delete_quote(conn, cursor, 1)
     result = list_quote(cursor)
     assert len(result) == 0
 
 def test_delete_tag_from_product(test_db):
     conn, cursor = test_db
-    delete_tag_from_product(conn, cursor, 1, "test tag")
+    delete_tag_from_product(conn, cursor, 1, 1)
     result = list_product_tag(cursor, 1)
     assert len(result) == 0
 
 def test_delete_customer_from_product(test_db):
     conn, cursor = test_db
-    delete_customer_from_product(conn, cursor, 1, "Test Customer")
+    delete_customer_from_product(conn, cursor, 1, 1)
     result = list_product_customer(cursor, 1)
     assert len(result) == 0
 
@@ -224,14 +224,11 @@ def test_edit_product(test_db):
 
 def test_edit_quote(test_db):
     conn, cursor = test_db
-    edit_quote(conn, cursor, 1, "Test Customer", 2, "new remark")
-    result = list_quote(cursor)
+    edit_quote(conn, cursor, 1, 2, "new remark")
+    result = get_quote_by_id(cursor, 1)
 
-    assert len(result) == 1
-    quote = result[0]
-
-    assert quote["quote"] == 2
-    assert quote["quote_remark"] == "new remark"
+    assert result[2] == 2
+    assert result[3] == "new remark"
 
 def test_edit_tag(test_db):
     conn, cursor = test_db

@@ -1,7 +1,7 @@
 from models import *
 import logging
 from fastapi import HTTPException
-from crud.utils import raise_404_if_not_found, raise_404_if_not_empty
+from crud.utils import raise_value_error_if_not_found, raise_value_error_if_empty
 
 logging.basicConfig(level=logging.INFO)
 
@@ -16,26 +16,23 @@ def add_tag(conn, cursor, product_id, tags):
         cursor.execute("""INSERT OR IGNORE INTO product_tags (product_id, tag_id)
                             VALUES (?, ?)""", (product_id, tag_id))
 
-def delete_tag_from_product(conn, cursor, product_id, tag_name):
+def delete_tag_from_product(conn, cursor, product_id, tag_id):
     # Unlink a tag from a product (tag stays in table)
-    cursor.execute("SELECT id FROM tags WHERE tag_name = ?", (tag_name,))
-    tag =  cursor.fetchone()
-    raise_404_if_not_empty(tag, msg = "Tag not found")
-    tag_id = tag[0]
     cursor.execute("DELETE FROM product_tags WHERE product_id = ? AND tag_id = ?",
                     (product_id, tag_id))
-    raise_404_if_not_found(cursor, msg = "Tag was not linked to this product")
+    raise_value_error_if_not_found(cursor, msg = "Tag was not linked to this product")
 
 def edit_tag(conn, cursor, tag_id, new_name):
     # Rename tag by ID
     cursor.execute("UPDATE tags SET tag_name = ? WHERE id = ?",
                     (new_name, tag_id))
-    raise_404_if_not_found(cursor, msg = "Tag not found")
+    raise_value_error_if_not_found(cursor, msg = "Tag not found")
+    return cursor.execute("SELECT id, tag_name FROM tags WHERE id = ?", (tag_id,)).fetchone()
     
 def search_by_tag(conn, cursor, tag_name):
     cursor.execute("SELECT id FROM tags WHERE tag_name LIKE ?", (f"%{tag_name}%",))
     tag = cursor.fetchone()
-    raise_404_if_not_empty(tag, msg = "Tag not found")
+    raise_value_error_if_empty(tag, msg = "Tag not found")
     
     tag_id = tag[0]
 
