@@ -1,16 +1,17 @@
 from models import *
 import logging
-from fastapi import HTTPException
 
 logging.basicConfig(level=logging.INFO)
 
 def search_by_barcode(conn, cursor, barcode):
-    cursor.execute("SELECT * FROM product_manager WHERE barcode = ?", (barcode,))
-    return cursor.fetchall()
+    cursor.execute("SELECT id FROM product_manager WHERE barcode = ?", (barcode,))
+    product_ids = [row[0] for row in cursor.fetchall()]
+    return product_ids
 
 def search_by_ref_num(conn, cursor, ref_num):
-    cursor.execute("SELECT * FROM product_manager WHERE ref_num = ?", (ref_num,))
-    return cursor.fetchall()
+    cursor.execute("SELECT id FROM product_manager WHERE ref_num = ?", (ref_num,))
+    product_ids = [row[0] for row in cursor.fetchall()]
+    return product_ids
 
 def locked_product(conn, cursor, product_id, user):
     with conn:

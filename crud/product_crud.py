@@ -1,6 +1,5 @@
 from models import *
 import logging
-from fastapi import HTTPException
 from crud.image_crud import add_image
 from crud.customer_crud import add_customer, search_by_customer
 from crud.tag_crud import add_tag, search_by_tag
@@ -63,23 +62,23 @@ def delete_product(conn, cursor, product_id):
 
 def search_products(conn, cursor, name=None, tag=None, customer=None, barcode=None, ref_num=None):
     if name:
-        return search_product_name(conn, cursor, name)
+        product_ids = search_product_name(conn, cursor, name)
     if tag:
-        return search_by_tag(conn, cursor, tag)
+        product_ids = search_by_tag(conn, cursor, tag)
     if customer:
-        return search_by_customer(conn, cursor, customer)
+        product_ids = search_by_customer(conn, cursor, customer)
     if barcode:
-        return search_by_barcode(conn, cursor, barcode)
+        product_ids = search_by_barcode(conn, cursor, barcode)
     if ref_num:
-        return search_by_ref_num(conn, cursor, ref_num)
-    return []
+        product_ids = search_by_ref_num(conn, cursor, ref_num)
+    return [format_product(conn, cursor, pid) for pid in product_ids]
 
 def search_product_name(conn, cursor, name):
-    # search by product name
-    result = cursor.execute("SELECT * FROM product_manager WHERE name LIKE ?",
+    # search by product name, return id
+    rows = cursor.execute("SELECT id FROM product_manager WHERE name LIKE ?",
                         (f"%{name}%",)).fetchall()
-    raise_value_error_if_empty(result, msg = "Resource not found")
-    return result
+    raise_value_error_if_empty(rows, msg = "Resource not found")
+    return [row["id"] for row in rows]
 
 def edit_product(conn, cursor, product_id, **kwargs):
     # Edit fields given product_id, e.g. edit_product (1, name="new name", price_rmb=3);
@@ -90,9 +89,14 @@ def edit_product(conn, cursor, product_id, **kwargs):
     fields = []
     values = []
 
+    ALLOWED_COLUMNS = {
+    "name", "barcode", "pcs_innerbox", "pcs_ctn",
+    "weight", "price_usd", "price_rmb", "remarks", "packing"}
+
     for key, value in kwargs.items():
-        fields.append(f"{key} = ?")
-        values.append(value)
+        if key in ALLOWED_COLUMNS:
+            fields.append(f"{key} = ?")
+            values.append(value)
 
     fields.append("last_updated = CURRENT_TIMESTAMP")
     values.append(product_id)

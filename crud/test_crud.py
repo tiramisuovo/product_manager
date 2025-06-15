@@ -159,10 +159,9 @@ def test_search_product_name(test_db):
 
     assert isinstance(results, list)
     assert len(results) == 1
-    product = results[0]
+    product_id = results[0]
 
-    assert product[1] == "TEST001"
-    assert product[2] == "test pen"
+    assert product_id == 1
 
 def test_search_by_tag(test_db):
     conn, cursor = test_db
@@ -170,10 +169,10 @@ def test_search_by_tag(test_db):
 
     assert isinstance(results, list)
     assert len(results) == 1
-    product = results[0]
+    product_id = results[0]
 
-    assert product[1] == "TEST001"
-    assert product[2] == "test pen"
+    assert product_id == 1
+
 
 def test_search_by_customer(test_db):
     conn, cursor = test_db
@@ -181,10 +180,10 @@ def test_search_by_customer(test_db):
 
     assert isinstance(results, list)
     assert len(results) == 1
-    product = results[0]
+    product_id = results[0]
 
-    assert product[1] == "TEST001"
-    assert product[2] == "test pen"
+    assert product_id == 1
+
 
 def test_search_by_barcode(test_db):
     conn, cursor = test_db
@@ -192,10 +191,10 @@ def test_search_by_barcode(test_db):
 
     assert isinstance(results, list)
     assert len(results) == 1
-    product = results[0]
+    product_id = results[0]
 
-    assert product[1] == "TEST001"
-    assert product[2] == "test pen"
+    assert product_id == 1
+
 
 def test_search_by_ref_num(test_db):
     conn, cursor = test_db
@@ -203,10 +202,10 @@ def test_search_by_ref_num(test_db):
 
     assert isinstance(results, list)
     assert len(results) == 1
-    product = results[0]
+    product_id = results[0]
 
-    assert product[1] == "TEST001"
-    assert product[2] == "test pen"
+    assert product_id == 1
+
 
 # Edit function tests
 

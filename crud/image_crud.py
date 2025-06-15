@@ -1,6 +1,5 @@
 from models import *
 import logging
-from fastapi import HTTPException
 from crud.utils import raise_value_error_if_not_found, raise_value_error_if_empty
 
 logging.basicConfig(level=logging.INFO)

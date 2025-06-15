@@ -1,6 +1,5 @@
 from models import *
 import logging
-from fastapi import HTTPException
 from crud.utils import raise_value_error_if_not_found, raise_value_error_if_empty
 
 logging.basicConfig(level=logging.INFO)
@@ -39,13 +38,7 @@ def search_by_tag(conn, cursor, tag_name):
     cursor.execute("SELECT product_id FROM product_tags WHERE tag_id = ?", (tag_id,))
     product_ids = [row[0] for row in cursor.fetchall()]
 
-    if not product_ids:
-        return []
-    
-    placeholders = ",".join("?" for _ in product_ids)
-    query = f"SELECT * FROM product_manager WHERE id IN ({placeholders})"
-    cursor.execute(query, tuple(product_ids))
-    return cursor.fetchall()
+    return product_ids
 
 def list_tag(cursor):
     cursor.execute("SELECT * FROM tags")

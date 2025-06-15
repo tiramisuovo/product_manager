@@ -46,6 +46,10 @@ def delete_product_api(product_id: int, db: tuple = Depends(get_db)):
     
 @router.put("/products/{product_id}", response_model = Product)
 def edit_product_api(product_id: int, updates: ProductUpdate, db: tuple = Depends(get_db)):
+    """
+    This endpoint only updates fields in the product_manager table.
+    Nested fields like customers, tags, quotes, and imgs should be edited via their respective endpoints.
+    """
     conn, cursor = db
     try:
         edit_product(conn, cursor, product_id, **updates.model_dump(exclude_unset = True))
@@ -62,7 +66,7 @@ def edit_product_api(product_id: int, updates: ProductUpdate, db: tuple = Depend
         logging.error(f"Failed to update product: {e}", exc_info = True)
         raise HTTPException(status_code=500, detail=f"Failed to update product: {e}")
 
-@router.get("/products/search")
+@router.get("/products/search", response_model = List[Product])
 def search_products_api(name: str = None,
                         tag: str = None,
                         customer: str = None,
@@ -73,7 +77,7 @@ def search_products_api(name: str = None,
     try:
         result = search_products(conn, cursor, name, tag, customer, barcode, ref_num)
         logging.info(f"Search successful")
-        return [dict(row) for row in result]
+        return result
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except sqlite3.OperationalError as e:
