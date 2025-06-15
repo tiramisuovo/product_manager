@@ -320,8 +320,6 @@ def test_edit_product_api(test_client):
     assert "price_usd" in fields
     assert "remarks" in fields
     assert "packing" in fields
-    assert "customers" in fields
-    assert "quote" in fields
     print("STATUS:", response.status_code)
     print("BODY:", response.text)
 

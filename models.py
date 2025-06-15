@@ -83,10 +83,6 @@ class ProductUpdate(BaseModel):
     price_rmb: Optional[float] = None
     remarks: Optional[str] = None
     packing: Optional[str] = None
-    customers: Optional[List[CustomerUpdate]] = None
-    quote: Optional[List[QuoteUpdate]] = None
-    imgs: Optional[List[int]] = None
-    tags: Optional[List[TagUpdate]] = None
 
 
 # View models
