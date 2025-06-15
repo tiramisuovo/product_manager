@@ -1,16 +1,19 @@
 from models import *
 import logging
+from crud.utils import raise_value_error_if_not_found, raise_value_error_if_empty
 
 logging.basicConfig(level=logging.INFO)
 
 def search_by_barcode(conn, cursor, barcode):
     cursor.execute("SELECT id FROM product_manager WHERE barcode = ?", (barcode,))
     product_ids = [row[0] for row in cursor.fetchall()]
+    raise_value_error_if_empty(product_ids, "No product found with that barcode")
     return product_ids
 
 def search_by_ref_num(conn, cursor, ref_num):
     cursor.execute("SELECT id FROM product_manager WHERE ref_num = ?", (ref_num,))
     product_ids = [row[0] for row in cursor.fetchall()]
+    raise_value_error_if_empty(product_ids, "No product found with that reference number")
     return product_ids
 
 def locked_product(conn, cursor, product_id, user):
