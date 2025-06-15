@@ -61,6 +61,7 @@ def delete_product(conn, cursor, product_id):
     raise_value_error_if_not_found(cursor, msg = "Product not found")
 
 def search_products(conn, cursor, name=None, tag=None, customer=None, barcode=None, ref_num=None):
+    product_ids = []
     if name:
         product_ids = search_product_name(conn, cursor, name)
     if tag:
