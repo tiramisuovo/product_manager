@@ -72,7 +72,8 @@ class TagUpdate(BaseModel):
     new_name: Optional[str] = None
 
 class QuoteUpdate(QuoteDetail):
-    pass
+    quote: Optional[float] = None
+    remark: Optional[str] = None 
 
 class ProductUpdate(BaseModel):
     name: Optional[str] = None
