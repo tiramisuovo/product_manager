@@ -71,7 +71,7 @@ class CustomerUpdate(BaseModel):
 class TagUpdate(BaseModel):
     new_name: Optional[str] = None
 
-class QuoteUpdate(QuoteDetail):
+class QuoteUpdate(BaseModel):
     quote: Optional[float] = None
     remark: Optional[str] = None 
 
