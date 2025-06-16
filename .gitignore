@@ -196,3 +196,7 @@ cython_debug/
 
 # Extra files
 Extra files/
+gui.py
+ui_models.py
+manage_NOT FINISHED.py
+product_manager.ui
