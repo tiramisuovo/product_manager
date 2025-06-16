@@ -4,13 +4,14 @@ from crud.utils import raise_value_error_if_not_found, raise_value_error_if_empt
 
 logging.basicConfig(level=logging.INFO)
 
-def add_quote(conn, cursor, product_id, quote_dict):
+def add_quote(conn, cursor, product_id, quote_list: QuoteList):
     # Add quote info per customer; raises if customer not found
-    # quote_dict is a dictionary of quotes in the following structure:
-    # {customer: {quote: int, remark: str}}
-    for customer_name, data in quote_dict.items():
-        quote_value = round(data.quote,2)
-        quote_remark = data.remark
+    # quote_list is a list of quotes in the following structure:
+    # [{customer_name: str, quote: int, remark: str}]
+    for entry in quote_list:
+        customer_name = entry.customer_name
+        quote_value = round(entry.quote,2) if entry.quote is not None else None
+        quote_remark = entry.remark
         cursor.execute("SELECT id FROM customers WHERE customer_name = ?", (customer_name,))
         customer = cursor.fetchone()
         raise_value_error_if_empty(customer, f"Customer {customer_name} not found")
@@ -24,11 +25,11 @@ def delete_quote(conn, cursor, quote_id):
     cursor.execute("DELETE FROM quotes WHERE id = ?", (quote_id,))
     raise_value_error_if_not_found(cursor, msg = "quote not found")
 
-def edit_quote(conn, cursor, quote_id, quote=None, quote_remark=None):
+def edit_quote(conn, cursor, quote_id, quote=None, remark=None):
     if quote is not None:
         quote = round(quote,2)
     cursor.execute("UPDATE quotes SET quote = ?, quote_remark = ? WHERE id = ?",
-                    (quote, quote_remark, quote_id))
+                    (quote, remark, quote_id))
     
     raise_value_error_if_not_found(cursor, "No matching quote found to update")
 

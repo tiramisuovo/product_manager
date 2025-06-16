@@ -73,12 +73,10 @@ def sample_product_payload():
         "remarks": "Testing add endpoint",
         "packing": "Boxed",
         "customers": ["CustomerA"],
-        "quote": {
-            "CustomerA": {
-                "quote": 12,
-                "remark": "bulk"
-            }
-        },
+        "quote": [{
+            "customer_name": "CustomerA",
+            "quote": 12,
+            "remark": "bulk"}],
         "imgs": ["img1.jpg"],
         "tags": ["summer"]
     }
@@ -96,12 +94,10 @@ def invalid_product_payload():
         "remarks": 7654321,
         "packing": 0.001,
         "customers": [None],
-        "quote": {
-            "CustomerA": {
-                "quote": "please just pass",
-                "remark": None
-            }
-        },
+        "quote": [{
+            "customer_name": "CustomerA",
+            "quote": "please just pass",
+            "remark": None}],
         "imgs": ["total valid image path"],
         "tags": []
     }
@@ -182,9 +178,9 @@ def test_create_quotes_api(test_client):
     add_result = test_client.post("/products/", json = payload)
     product_id = add_result.json()["id"]
     response = test_client.post(f"/products/{product_id}/quotes",
-                                json = {"quotes": {"CustomerA": {
-                                    "quote": 13,
-                                    "remark": "yes"}}})
+                                json = {"quotes": [{"customer_name": "CustomerA",
+                                                   "quote": 13,
+                                                   "remark": "yes"}]})
 
     assert response.status_code == 201
     data = response.json()
@@ -366,7 +362,7 @@ def test_edit_quote_api(test_client_and_db):
     product_data = add_response.json()
     quote_id = product_data["quote"][0]["quote_id"]
   
-    updated_payload = {"quote": 10, "quote_remark": "updated remark" }
+    updated_payload = {"quote": 10, "remark": "updated remark" }
 
     response = client.patch(f"/quotes/{quote_id}", json = updated_payload)
     assert response.status_code == 200

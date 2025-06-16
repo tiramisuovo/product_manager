@@ -8,12 +8,12 @@ import sqlite3
 router = APIRouter()
 
 @router.post("/products/{product_id}/quotes/", response_model = Product, status_code = 201)
-def create_quotes_endpoint(quotes:QuoteDict, product_id:int, db = Depends(get_db)):
+def create_quotes_endpoint(quotes:QuoteList, product_id:int, db = Depends(get_db)):
     conn, cursor = db
     try:
         add_quote(conn, cursor, product_id, quotes.quotes)
         conn.commit()
-        logging.info(f"Quote created: {quotes.quotes}")
+        logging.info(f"Quote created: {quotes}")
         return format_product (conn, cursor, product_id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))

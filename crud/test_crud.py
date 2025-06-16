@@ -55,7 +55,7 @@ def create_test_product(conn, cursor):
         remarks = "test remarks",
         packing = "box",
         customers = ["Test Customer"],
-        quote ={"Test Customer": {"quote": 1.1, "remark": "test"}},
+        quote =[{"customer_name": "Test Customer", "quote": 1.1, "remark": "test"}],
         imgs = ["img1.jpg"],
         tags = ["test tag"])
     add_product(conn, cursor, product)
