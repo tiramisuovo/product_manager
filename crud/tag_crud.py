@@ -26,7 +26,8 @@ def edit_tag(conn, cursor, tag_id, new_name):
     cursor.execute("UPDATE tags SET tag_name = ? WHERE id = ?",
                     (new_name, tag_id))
     raise_value_error_if_not_found(cursor, msg = "Tag not found")
-    return cursor.execute("SELECT id, tag_name FROM tags WHERE id = ?", (tag_id,)).fetchone()
+    row = cursor.execute("SELECT id, tag_name FROM tags WHERE id = ?", (tag_id,)).fetchone()
+    return {"id": row[0], "tag_name": row[1]}
     
 def search_by_tag(conn, cursor, tag_name):
     cursor.execute("SELECT id FROM tags WHERE tag_name LIKE ?", (f"%{tag_name}%",))

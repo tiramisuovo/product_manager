@@ -38,7 +38,8 @@ def edit_customer(conn, cursor, customer_id, new_name):
     cursor.execute("UPDATE customers SET customer_name = ? WHERE id = ?",
                     (new_name, customer_id))
     raise_value_error_if_not_found(cursor, msg = "Customer not found")
-    return cursor.execute("SELECT id, customer_name FROM customers WHERE id = ?", (customer_id,)).fetchone()
+    row = cursor.execute("SELECT id, customer_name FROM customers WHERE id = ?", (customer_id,)).fetchone()
+    return {"id": row[0], "customer_name": row[1]}
 
 def list_customer(cursor):
     result = cursor.execute("SELECT * FROM customers").fetchall()
