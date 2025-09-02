@@ -46,18 +46,29 @@ def raise_404_if_not_empty(result, msg = "Resource not found"):
 
 
 @app.patch("/products/{product_id}/lock", response_model = Product)
-def set_lock_status(product_id: int, lock: LockStatus, user: str, db: tuple = Depends(get_db)):
+def set_lock_status(product_id: int, lock: LockStatus, user: str, admin: bool = False, db: tuple = Depends(get_db)):
     conn, cursor = db
     try:
-        if lock.locked == True:
-            locked_product(conn, cursor, product_id, user)
+        if lock.locked:
+            acquired = locked_product(conn, cursor, product_id, user)
+            if not acquired:
+                holder = get_lock_status(cursor, product_id)
+                raise HTTPException(
+                    status_code=409,
+                    detail={"message": "Product is locked by another user.",
+                            "holder": holder["locked_by"] if holder else None,
+                            "locked_timestamp": holder["locked_timestamp"] if holder else None}
+                )
         else:
-            unlock_product(conn, cursor, product_id)
+            unlock_product(conn, cursor, product_id, user, admin=admin)
         result = format_product(conn, cursor, product_id)
         raise_404_if_not_empty(result, msg = "Lock not found")
         conn.commit()
         logging.info(f"Set lock status for product ID: {product_id}")
         return result
+    except HTTPException:
+        conn.rollback()
+        raise    
     except Exception as e:
         logging.error(f"Failed to update lock status: {e}", exc_info = True)
         raise HTTPException(status_code=500, detail=f"Failed to update lock status: {e}")

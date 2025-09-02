@@ -432,14 +432,39 @@ def test_update_lock_status_api(test_client):
     add_response = test_client.post("/products/", json = payload)
     product_id = add_response.json()["id"]
 
-    response = test_client.patch(f"/products/{product_id}/lock?user=testuser", json={"locked": True})
-    assert response.status_code == 200
-    data = response.json()
-    assert data["locked_by"] == "testuser"
+    # 2) Acquire lock by Alice
+    r = test_client.patch(f"/products/{product_id}/lock?user=alice", json={"locked": True})
+    assert r.status_code == 200
+    data = r.json()
+    assert data["locked_by"] == "alice"
     assert data["locked_timestamp"] is not None
 
-    response = test_client.patch(f"/products/{product_id}/lock?user=testuser", json={"locked": False})
-    assert response.status_code == 200
-    data = response.json()
+    # 3) Heartbeat by Alice (should refresh and still be 200)
+    r = test_client.patch(f"/products/{product_id}/lock?user=alice", json={"locked": True})
+    assert r.status_code == 200
+    data = r.json()
+    assert data["locked_by"] == "alice"
+    assert data["locked_timestamp"] is not None
+
+    # 4) Bob tries to acquire while Alice holds a fresh lock -> 409
+    r = test_client.patch(f"/products/{product_id}/lock?user=bob", json={"locked": True})
+    assert r.status_code == 409
+    detail = r.json()["detail"]
+    # server should tell who holds it
+    assert detail["holder"] == "alice"
+    assert "message" in detail
+
+    # 5) Bob tries to unlock (should NOT remove Alice's fresh lock if holder-only unlock is enforced)
+    r = test_client.patch(f"/products/{product_id}/lock?user=bob", json={"locked": False})
+    assert r.status_code == 200
+    data = r.json()
+    # Still locked by Alice
+    assert data["locked_by"] == "alice"
+    assert data["locked_timestamp"] is not None
+
+    # 6) Alice unlocks -> lock cleared
+    r = test_client.patch(f"/products/{product_id}/lock?user=alice", json={"locked": False})
+    assert r.status_code == 200
+    data = r.json()
     assert data["locked_by"] is None
     assert data["locked_timestamp"] is None
