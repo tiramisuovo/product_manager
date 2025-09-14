@@ -481,7 +481,7 @@ def test_list_images_api(test_client_and_db):
 
     # Patch at the place where the endpoint imported it
     with patch("backend.api.image_api.generate_signed_url", lambda key, *_: f"https://fake-oss.com/{key}"):
-        response = client.get(f"/products/{product_id}/images")
+        response = client.get(f"/products/{product_id}/images/list")
         data = response.json()
     assert response.status_code == 200
 
