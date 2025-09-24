@@ -62,7 +62,7 @@ def get_images_endpoint(product_id: int, db: tuple = Depends(get_db)):
                 image_urls.append(signed_url)
             else:
                 logging.warning(f"Failed to generate signed URL for image: {img}")
-        return image_urls
+        return images
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:

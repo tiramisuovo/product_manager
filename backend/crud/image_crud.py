@@ -1,3 +1,5 @@
+from sqlite3 import connect
+from httpx import get
 from backend.models import *
 import logging
 from backend.crud.utils import raise_value_error_if_not_found, raise_value_error_if_empty
@@ -27,4 +29,3 @@ def get_images(conn, cursor, product_id):
     rows = cursor.fetchall()
     raise_value_error_if_empty(rows, msg = "No images found for this product")
     return [r[0] for r in rows]
-
