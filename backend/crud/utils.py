@@ -1,6 +1,7 @@
 import oss2
 import os, sys
 from dotenv import load_dotenv
+import logging
 
 # Raise value error if empty; select + fetchone/fetchall statements
 def raise_value_error_if_empty(result, msg = "Resource not found"):
@@ -39,9 +40,11 @@ def get_bucket():
 
 def generate_signed_url(oss_key, expires_in_seconds=600) -> str:
     try:
+        logging.info(f"ENV TEST: {os.getenv('OSS_ACCESS_KEY_ID')=} {os.getenv('OSS_BUCKET')=}")
         bucket = get_bucket()
         url = bucket.sign_url("GET", oss_key, expires_in_seconds)
+        logging.info(f"Signed OK: {url}")
         return url
     except Exception as e:
-        print(f"[EXCEPTION] Signed URL error: {e}")
+        logging.error(f"[EXCEPTION] Signed URL error for {oss_key}: {e}", exc_info=True)
         return None
