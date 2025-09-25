@@ -13,10 +13,10 @@ import logging
 import os
 from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
-from dotenv import load_dotenv
+from dotenv import load_dotenv, find_dotenv
 
-env_path = Path(__file__).resolve().parent.parent.parent / ".env"
-load_dotenv(dotenv_path=env_path, override=True)
+env_path = find_dotenv()
+load_dotenv(env_path, override=True)
 
 logging.basicConfig(
     level=logging.INFO,
