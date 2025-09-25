@@ -49,7 +49,7 @@ def delete_image_api(image_id: int, db: tuple = Depends(get_db)):
         logging.error(f"Failed to delete image: {e}", exc_info = True)
         raise HTTPException(status_code=500, detail=f"Failed to delete image: {e}")
 
-@router.get("/products/{product_id}/images/list", response_model=List[str])
+@router.get("/products/{product_id}/images/list")
 def get_images_endpoint(product_id: int, db: tuple = Depends(get_db)):
     conn, cursor = db
     try:
