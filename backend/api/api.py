@@ -10,8 +10,25 @@ from backend.api.tag_api import router as tag_router
 from backend.api.quote_api import router as quote_router
 from backend.api.image_api import router as image_router
 import logging
+import os
 from fastapi.middleware.cors import CORSMiddleware
+from pathlib import Path
+from dotenv import load_dotenv
 
+env_path = Path(__file__).resolve().parent / ".env"
+load_dotenv(dotenv_path=env_path, override=True)
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+    handlers=[
+        logging.FileHandler("app.log"),
+        logging.StreamHandler()
+    ]
+)
+
+# Debug check
+logging.info(f"Loaded env OSS_BUCKET={os.getenv('OSS_BUCKET')}, OSS_ENDPOINT={os.getenv('OSS_ENDPOINT')}")
 
 app = FastAPI()
 app.add_middleware(
