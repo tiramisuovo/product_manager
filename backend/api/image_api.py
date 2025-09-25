@@ -49,7 +49,7 @@ def delete_image_api(image_id: int, db: tuple = Depends(get_db)):
         logging.error(f"Failed to delete image: {e}", exc_info = True)
         raise HTTPException(status_code=500, detail=f"Failed to delete image: {e}")
 
-@router.get("/products/{product_id}/images/list")
+@router.get("/products/{product_id}/images/list", response_model = list[str])
 def get_images_endpoint(product_id: int, db: tuple = Depends(get_db)):
     conn, cursor = db
     try:
@@ -62,10 +62,7 @@ def get_images_endpoint(product_id: int, db: tuple = Depends(get_db)):
                 image_urls.append(signed_url)
             else:
                 logging.warning(f"Failed to generate signed URL for image: {img}")
-        return {"images": image_urls,
-                "debug": {
-                    "env_bucket": os.getenv("OSS_BUCKET"),
-                    "db_values": images}}
+        return image_urls
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
     except Exception as e:

@@ -18,7 +18,6 @@ from dotenv import load_dotenv, find_dotenv
 env_path = find_dotenv()
 load_dotenv(env_path, override=True)
 
-
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
@@ -27,9 +26,6 @@ logging.basicConfig(
         logging.StreamHandler()
     ]
 )
-
-# Debug check
-logging.info(f"Loaded env OSS_BUCKET={os.getenv('OSS_BUCKET')}, OSS_ENDPOINT={os.getenv('OSS_ENDPOINT')}")
 
 app = FastAPI()
 app.add_middleware(
