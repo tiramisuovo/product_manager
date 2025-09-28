@@ -1,5 +1,5 @@
-from re import S
-from PySide6.QtWidgets import QFileDialog, QVBoxLayout, QLabel
+﻿from re import S
+from PySide6.QtWidgets import QFileDialog, QVBoxLayout, QLabel, QWidget, QPushButton
 from PySide6.QtCore import QObject, QThread, Signal, Slot
 from desktop.view_models import *
 from desktop.ui_pm import *
@@ -8,6 +8,7 @@ from pathlib import Path
 from PIL import Image, ImageOps
 from uuid import uuid4
 from typing import Callable, Optional
+import os
 import tempfile
 
 
@@ -75,8 +76,8 @@ class UploadWidget(QWidget):
             if self.product_id:
                 self.start_upload(shrinked_path, key_name)
             else:
-                self._on_staged(shrinked_path, key_name)
-                
+                if self._on_staged:
+                    self._on_staged(shrinked_path, key_name)
 
     def shrink_if_needed(self, path, max_side=1600, quality=85):
         if not isinstance(path, (str, os.PathLike, Path)):
@@ -94,9 +95,9 @@ class UploadWidget(QWidget):
 
             original = Path(path)
             key_name = f"{Path(original).stem}-{uuid4().hex[:6]}.jpg"
-        
+
         return out, key_name
-    
+
     def start_upload(self, file_path:str, key_name:str):
         self.button.setEnabled(False)
         self.label.setText("Uploading...")
@@ -115,16 +116,15 @@ class UploadWidget(QWidget):
         self._thread.finished.connect(self._thread.deleteLater)
 
         self._thread.start()
-    
+
     @Slot(str)
     def on_success(self, oss_key: str):
         self.button.setEnabled(True)
-        self.label.setText(f"✅ Uploaded: {Path(oss_key).name}")
+        self.label.setText(f"Uploaded: {Path(oss_key).name}")
         if self._on_uploaded:
             self._on_uploaded(oss_key)
-    
+
     @Slot(str)
     def on_failed(self, msg:str):
         self.button.setEnabled(True)
-        self.label.setText(f"❌ Upload failed: {str(msg)}")
-
+        self.label.setText(f"Upload failed: {msg}")

@@ -8,6 +8,8 @@ def add_quote(conn, cursor, product_id, quote_list: QuoteList):
     # Add quote info per customer; raises if customer not found
     # quote_list is a list of quotes in the following structure:
     # [{customer_name: str, quote: int, remark: str}]
+    if not quote_list:
+        return {"quote": []}    
     for entry in quote_list:
         customer_name = entry.customer_name
         quote_value = round(entry.quote,2) if entry.quote is not None else None

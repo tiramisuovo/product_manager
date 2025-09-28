@@ -11,7 +11,7 @@ def search_by_barcode(conn, cursor, barcode):
     return product_ids
 
 def search_by_ref_num(conn, cursor, ref_num):
-    cursor.execute("SELECT id FROM product_manager WHERE ref_num = ?", (ref_num,))
+    cursor.execute("SELECT id FROM product_manager WHERE ref_num LIKE ?", (f"%{ref_num}%",))
     product_ids = [row[0] for row in cursor.fetchall()]
     raise_value_error_if_empty(product_ids, "No product found with that reference number")
     return product_ids

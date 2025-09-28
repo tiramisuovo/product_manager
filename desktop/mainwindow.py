@@ -1,8 +1,11 @@
+from ast import List
 from re import S
 from PySide6.QtWidgets import QApplication
 from PySide6.QtWidgets import QMainWindow, QMessageBox, QMenu
 from PySide6.QtGui import QPixmap
 from PySide6.QtCore import Qt, QPoint, QEvent, QObject, QTimer
+from PySide6.QtWidgets import QSizePolicy, QLineEdit, QTableWidgetItem
+from PySide6.QtCore import QSize
 from desktop.view_models import *
 from desktop.ui_pm import *
 from desktop.oss_vm import *
@@ -11,7 +14,6 @@ import copy
 from desktop.upload_widget import *
 from desktop.image_loader import *
 from desktop.login_dialog import login
-from desktop.product_draft import ProductDraft
 
 import os, sys
 from dotenv import load_dotenv
@@ -56,10 +58,6 @@ class MainWindow(QMainWindow):
         self.ui.display_mode.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.ui.display_mode.setMinimumSize(QSize(0, 0))
         self.ui.display_mode.setMaximumSize(QSize(16777215, 16777215))
-
-        print("Central:", self.centralWidget().sizeHint())
-        print("TabWidget:", self.ui.tabWidget.sizeHint())
-        print("Edit mode:", self.ui.edit_mode.sizeHint())
 
         # Finally, launch maximized
         self.showMaximized()
@@ -125,14 +123,13 @@ class MainWindow(QMainWindow):
         self.img_loader_2 = ImageLoader(self, thumb_size=QSize(220, 160))
         self.image_layout_2 = self.ui.image_container_2.layout()
         self.image_layout_2.addWidget(self.img_loader_2)
-        self.img_loader_2.list.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.img_loader_2.list.customContextMenuRequested.connect(self.show_image_menu)
+        self.img_loader_2.list.setContextMenuPolicy(Qt.NoContextMenu)
 
         self.ui.ref_num_LineEdit_2.setReadOnly(True)
         self.ui.name_LineEdit_2.setReadOnly(True)
         self.ui.price_usd_LineEdit_2.setReadOnly(True)
         
-        self.draft = None
+        self.staged_image: list[dict[str, str]] = []
         self.original_vm = None
 
     def ask_user_name(self) -> str:
@@ -180,7 +177,8 @@ class MainWindow(QMainWindow):
         self.ui.listWidget_2.clear()
 
         result = self.search(text, selected)
-
+        if not result:
+            return
         for vm in result:
             self.ui.productlist_ListWidget.addItem(f"{vm.name} [{vm.ref_num}]")
             self.ui.listWidget_2.addItem(f"{vm.name} [{vm.ref_num}]")
@@ -194,6 +192,8 @@ class MainWindow(QMainWindow):
         self.ui.listWidget_2.clear()
 
         result = self.search(text, selected)
+        if not result:
+            return
 
         for vm in result:
             self.ui.listWidget_2.addItem(f"{vm.name} [{vm.ref_num}]")
@@ -211,12 +211,12 @@ class MainWindow(QMainWindow):
 
             self.ui.ref_num_LineEdit.setText(ref_num)
             self.ui.name_LineEdit.setText(current_obj.name)
-            self.ui.barcode_LineEdit.setText(f"{current_obj.barcode}")
-            self.ui.pcs_innerbox_LineEdit.setText(f"{current_obj.pcs_innerbox}")
-            self.ui.pcs_ctn_LineEdit.setText(f"{current_obj.pcs_ctn}")
-            self.ui.weight_lineEdit.setText(f"{current_obj.weight}")
-            self.ui.price_usd_LineEdit.setText(f"{current_obj.price_usd}")
-            self.ui.price_rmb_LineEdit.setText(f"{current_obj.price_rmb}")
+            self.set_text_if_not_none(self.ui.barcode_LineEdit, current_obj.barcode)
+            self.set_text_if_not_none(self.ui.pcs_innerbox_LineEdit, current_obj.pcs_innerbox)
+            self.set_text_if_not_none(self.ui.pcs_ctn_LineEdit, current_obj.pcs_ctn)
+            self.set_text_if_not_none(self.ui.weight_lineEdit, current_obj.weight)
+            self.set_text_if_not_none(self.ui.price_usd_LineEdit, current_obj.price_usd)
+            self.set_text_if_not_none(self.ui.price_rmb_LineEdit, current_obj.price_rmb)
             self.ui.remarks_TextEdit.setText(current_obj.remarks)
             self.ui.packing_LineEdit.setText(current_obj.packing)
             self.display_tags(current_obj)
@@ -232,6 +232,12 @@ class MainWindow(QMainWindow):
 
             self.img_loader_2.clear_list()
             self.display_tab2(ref_num, current_obj, oss_keys)
+    
+    def set_text_if_not_none(self, line_edit: QLineEdit, value: Any) -> None:
+        if value is not None:
+            line_edit.setText(str(value))
+        else:
+            line_edit.clear()
     
     def display_tab2(self, ref_num = None, current_obj = None, oss_keys = None):
         if current_obj is None:
@@ -256,6 +262,7 @@ class MainWindow(QMainWindow):
         if not oss_keys:
             self.img_loader.clear_list()
             self.img_loader_2.clear_list()
+            self.staged_image = []
             return
         if tab2:
             self.img_loader_2.load_into(oss_keys)
@@ -323,12 +330,12 @@ class MainWindow(QMainWindow):
         ref_num = self.ui.ref_num_LineEdit.text()
         current_obj = self.pm.find_by_ref_num(ref_num)
         current_obj.name = self.ui.name_LineEdit.text()
-        current_obj.barcode = self.ui.barcode_LineEdit.text()
-        current_obj.pcs_innerbox = self.ui.pcs_innerbox_LineEdit.text()
-        current_obj.pcs_ctn = self.ui.pcs_ctn_LineEdit.text()
-        current_obj.weight = self.ui.weight_lineEdit.text()
-        current_obj.price_usd = self.ui.price_usd_LineEdit.text()
-        current_obj.price_rmb = self.ui.price_rmb_LineEdit.text()
+        current_obj.barcode = self.safe_int(self.ui.barcode_LineEdit.text())
+        current_obj.pcs_innerbox = self.safe_int(self.ui.pcs_innerbox_LineEdit.text())
+        current_obj.pcs_ctn = self.safe_int(self.ui.pcs_ctn_LineEdit.text())
+        current_obj.weight = self.safe_float(self.ui.weight_lineEdit.text())
+        current_obj.price_usd = self.safe_float(self.ui.price_usd_LineEdit.text())
+        current_obj.price_rmb = self.safe_float(self.ui.price_rmb_LineEdit.text())
         current_obj.remarks = self.ui.remarks_TextEdit.toPlainText()
         current_obj.packing = self.ui.packing_LineEdit.text()
 
@@ -344,15 +351,18 @@ class MainWindow(QMainWindow):
         old_quotes = self.original_vm.quotes
         new_quotes = self.get_all_quotes()
         quote_vm = self.pm.bulk_update_quote(customer_vm, old_quotes, new_quotes)
-        return quote_vm
+        self.original_vm = copy.deepcopy(quote_vm)
+        return self.original_vm
     
     @staticmethod
     def safe_int(text: str) -> int | None:
-        return int(text) if text.strip() else None
+        if text:
+            return int(text) if text.strip() else None
 
     @staticmethod
     def safe_float(text: str) -> float | None:
-        return float(text) if text.strip() else None
+        if text:
+            return float(text) if text.strip() else None
 
     def add_product(self):
         data = {
@@ -368,7 +378,6 @@ class MainWindow(QMainWindow):
             "packing": self.ui.packing_LineEdit.text(),
             "customers": self.get_all_customers(),
             "quote": self.get_all_quotes(),
-            "imgs": [i["oss_key"] for i in self.draft.imgs] if self.draft else [],
             "tags": self.get_all_tags(),
             "locked_by": None,
             "locked_timestamp": None,
@@ -377,7 +386,7 @@ class MainWindow(QMainWindow):
 
         new_vm = self.pm.create_product(data)
 
-        for img in self.draft.imgs:
+        for img in self.staged_image:
             select_and_upload_image(img["temp"], new_vm.id, img["key_name"])
             os.remove(img["temp"])
         return new_vm
@@ -408,14 +417,32 @@ class MainWindow(QMainWindow):
         return customer_names
 
     def show_customer_menu(self, position):
-        sender_widget = self.sender()
+        if not self.original_vm:
+            return
+
+        sender = self.sender()
+        if not isinstance(sender, QLineEdit):
+            return
+
         menu = QMenu()
         delete_action = menu.addAction("Delete Customer")
-        action = menu.exec(sender_widget.mapToGlobal(position))
-        if action == delete_action:
-            customer = sender_widget.text()
-            self.pm.delete_customer(self.original_vm, customer)
-            self.remove_widget_from_layout(self.customer_layout, sender_widget)
+        action = menu.exec(sender.mapToGlobal(position))
+        if action != delete_action:
+            return
+
+        name = sender.text().strip()
+        if not name:
+            self.display_customers(self.original_vm)
+            return
+
+        current_names = {c["customer_name"] for c in (self.original_vm.customers or [])}
+        if name not in current_names:
+            self.remove_widget_from_layout(self.customer_layout, sender)
+            return
+
+        self.original_vm = self.pm.delete_customer(self.original_vm, name)
+        self.display_customers(self.original_vm)
+
 
     def add_tag(self):
         line_edit = QLineEdit()
@@ -435,15 +462,31 @@ class MainWindow(QMainWindow):
         return tag_names
 
     def show_tag_menu(self, position):
-        sender_widget = self.sender()
+        if not self.original_vm:
+            return
+
+        sender = self.sender()
+        if not isinstance(sender, QLineEdit):
+            return
+
         menu = QMenu()
         delete_action = menu.addAction("Delete Tag")
-        action = menu.exec(sender_widget.mapToGlobal(position))
-        if action == delete_action:
-            tag = sender_widget.text()
-            self.pm.delete_tag(self.original_vm, tag)
-            self.remove_widget_from_layout(self.tag_layout, sender_widget)
+        action = menu.exec(sender.mapToGlobal(position))
+        if action != delete_action:
+            return
 
+        tag = sender.text().strip()
+        if not tag:
+            self.display_tags(self.original_vm)
+            return
+
+        current_tags = {t["tag_name"] for t in (self.original_vm.tags or [])}
+        if tag not in current_tags:
+            self.remove_widget_from_layout(self.tag_layout, sender)
+            return
+
+        self.original_vm = self.pm.delete_tag(self.original_vm, tag)
+        self.display_tags(self.original_vm)
 
     def add_quote(self):
         row_position = self.ui.quote_tableWidget.rowCount()
@@ -486,9 +529,8 @@ class MainWindow(QMainWindow):
 
     def new_form(self):
         self.clear_fields()
-        self.draft = ProductDraft()
+        self.staged_image = []
         self.original_vm = None
-        return self.draft
     
     def handle_uploaded_image(self, oss_key: str) -> None:
         """Existing product: upload already succeeded, so pull fresh data."""
@@ -504,12 +546,12 @@ class MainWindow(QMainWindow):
         if not temp_path or not key_name:
             return
 
-        if self.draft is None:
-            self.draft = ProductDraft()
+        if self.staged_image is None:
+            self.staged_image = []
 
-        self.draft.imgs.append({"temp": temp_path, "key_name": key_name, "oss_key": f"uploads/{key_name}"})
+        self.staged_image.append({"temp": temp_path, "key_name": key_name})
 
-        local_paths = [img["temp"] for img in self.draft.imgs if img.get("temp")]
+        local_paths = [img["temp"] for img in self.staged_image if img.get("temp")]
         self.img_loader.load_local_paths(local_paths)
 
 
@@ -549,28 +591,63 @@ class MainWindow(QMainWindow):
         menu = QMenu()
         delete_action = menu.addAction("Delete Quote")
         action = menu.exec(self.ui.quote_tableWidget.viewport().mapToGlobal(position))
+        if not self.original_vm:
+            return
         if action == delete_action:
             index = self.ui.quote_tableWidget.indexAt(position)
             selected_row = index.row()
             if selected_row >= 0:
                 quote_id_item = self.ui.quote_tableWidget.item(selected_row, 3)
+                if not quote_id_item or not quote_id_item.text():
+                    self.display_quotes(self.original_vm)
+                    return
                 quote_id = int(quote_id_item.text())
-                self.pm.delete_quote(self.original_vm, quote_id)
-                self.ui.quote_tableWidget.removeRow(selected_row)
+                self.original_vm = self.pm.delete_quote(self.original_vm, quote_id)
+                self.display_quotes(self.original_vm)
     
     def show_image_menu(self, position):
-        item = self.img_loader.list.itemAt(position)
+        sender = self.sender()
+        if not isinstance(sender, QListWidget):
+            return
+
+        item = sender.itemAt(position)
         if not item:
             return
-        menu = QMenu(self.img_loader.list)
+
+        menu = QMenu(sender)
         delete_action = menu.addAction("Delete Image")
-        action = menu.exec(self.img_loader.list.viewport().mapToGlobal(position))
-        if action == delete_action:
-            image_path = item.data(Qt.UserRole)
-            if image_path:
-                self.pm.delete_img(self.original_vm, image_path)
-            row = self.img_loader.list.row(item)
-            self.img_loader.list.takeItem(row)
+        action = menu.exec(sender.viewport().mapToGlobal(position))
+        if action != delete_action:
+            return
+
+        path = item.data(Qt.UserRole)
+        if not path:
+            sender.takeItem(sender.row(item))
+            return
+
+        if self.original_vm:
+            self.original_vm = self.pm.delete_img(self.original_vm, path)
+            oss_keys = [img["img"] for img in (self.original_vm.imgs or [])]
+            self.display_product_images(oss_keys)
+        else:
+            self._drop_staged_image(path)
+            staged = [img["temp"] for img in self.staged_image if img.get("temp")]
+            self.img_loader.load_local_paths(staged)
+
+    def _drop_staged_image(self, path: str) -> None:
+        if not self.staged_image or not path:
+            return
+
+        remaining = []
+        for entry in self.staged_image:
+            if entry.get("temp") == path:
+                try:
+                    os.remove(path)
+                except OSError:
+                    pass
+            else:
+                remaining.append(entry)
+        self.staged_image = remaining
 
 app = QApplication([])
 window = MainWindow()

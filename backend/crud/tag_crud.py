@@ -7,6 +7,8 @@ logging.basicConfig(level=logging.INFO)
 def add_tag(conn, cursor, product_id, tags):
     # Link tags to product
     # Create tag entries if they don't exist
+    if not tags:
+        return {"tags": []}
     for t in tags:
         cursor.execute("INSERT OR IGNORE INTO tags(tag_name) VALUES (?)",
                             (t,))

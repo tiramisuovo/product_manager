@@ -3,6 +3,7 @@ from backend.models import Product
 from desktop.client import *
 from typing import Any
 from desktop.product_draft import ProductDraft
+from typing import TYPE_CHECKING
 
 class ProductVM():
     def __init__ (self, data: dict | Product):
@@ -151,10 +152,15 @@ class ProductManager():
                                           barcode = barcode, ref_num = ref_num)
         result = [ProductVM(p) for p in response]
 
-        existing_ids = {p.id for p in self._product_cache}
+        # Keep cache in sync with the latest server payloads.
+        cache_index = {p.id: i for i, p in enumerate(self._product_cache)}
         for vm in result:
-            if vm.id not in existing_ids:
+            idx = cache_index.get(vm.id)
+            if idx is not None:
+                self._product_cache[idx] = vm
+            else:
                 self._product_cache.append(vm)
+                cache_index[vm.id] = len(self._product_cache) - 1
 
         return result #list of ProductVM
     

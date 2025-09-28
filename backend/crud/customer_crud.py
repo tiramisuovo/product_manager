@@ -7,6 +7,8 @@ logging.basicConfig(level=logging.INFO)
 def add_customer(conn, cursor, product_id, customers):
     # Link customers to product
     # Create customer entries if they don't exist
+    if not customers:
+        return {"customers": []}    
     for c in customers:
         cursor.execute("INSERT OR IGNORE INTO customers(customer_name) VALUES(?)",
                             (c,))

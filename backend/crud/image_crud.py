@@ -9,6 +9,8 @@ logging.basicConfig(level=logging.INFO)
 def add_image(conn, cursor, product_id, img):
     # Add image paths to a product
     # img is a list of strings (paths)
+    if not img:
+        return {"img": []}
     cursor.executemany("INSERT INTO product_images(product_id, img) VALUES(?, ?)",
                         [(product_id, i) for i in img])
     return {"img": img}
