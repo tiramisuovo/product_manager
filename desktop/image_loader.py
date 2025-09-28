@@ -11,6 +11,7 @@ from PySide6.QtNetwork import (
 )
 from PySide6.QtWidgets import QWidget, QListWidget, QListWidgetItem, QVBoxLayout, QSizePolicy
 from PySide6.QtCore import Qt, QEvent
+from pathlib import Path
 
 class ImageLoader(QWidget):
     def __init__(self, parent=None, thumb_size: QSize = QSize(200,150)):
@@ -66,6 +67,25 @@ class ImageLoader(QWidget):
                     lambda err, r=reply, it=item: self._on_error(err, r, it)
                 )
     
+
+    def load_local_paths(self, file_paths: list[str]) -> None:
+        """Show thumbnails for locally staged files (no network)."""
+        self.clear_list()
+        for path in file_paths:
+            pix = QPixmap(path)
+            if pix.isNull():
+                continue
+            thumb = pix.scaled(self.thumb_size, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+
+            item = QListWidgetItem(Path(path).name)
+            item.setSizeHint(QSize(self.thumb_size.width() + 16,
+                                   self.thumb_size.height() + 28))
+            item.setData(Qt.UserRole, path)
+            item.setIcon(QIcon(thumb))
+            item.setData(Qt.UserRole + 1, pix)  # keep full-res for the viewer
+            self.list.addItem(item)
+
+
     @Slot()
     def _on_error(self, err, reply, item):
         status = reply.attribute(QNetworkRequest.HttpStatusCodeAttribute)

@@ -11,6 +11,7 @@ import copy
 from desktop.upload_widget import *
 from desktop.image_loader import *
 from desktop.login_dialog import login
+from desktop.product_draft import ProductDraft
 
 import os, sys
 from dotenv import load_dotenv
@@ -66,7 +67,7 @@ class MainWindow(QMainWindow):
 
         self.setWindowTitle("Product Manager")
         self.pm = ProductManager()
-
+        
         self.user = self.ask_user_name()
 
         self._uploader = None
@@ -101,7 +102,7 @@ class MainWindow(QMainWindow):
         self.ui.scrollArea_2.viewport().installEventFilter(self.blocker)
 
         self.ui.edit_pushButton.clicked.connect(self.edit_product)
-        self.ui.newform_PushButton.clicked.connect(self.clear_fields)
+        self.ui.newform_PushButton.clicked.connect(self.new_form)
         self.ui.add_PushButton.clicked.connect(self.add_product)
         self.ui.add_customer_pushButton.clicked.connect(self.add_customer)
         self.ui.add_tag_pushButton.clicked.connect(self.add_tag)
@@ -131,6 +132,7 @@ class MainWindow(QMainWindow):
         self.ui.name_LineEdit_2.setReadOnly(True)
         self.ui.price_usd_LineEdit_2.setReadOnly(True)
         
+        self.draft = None
         self.original_vm = None
 
     def ask_user_name(self) -> str:
@@ -143,7 +145,8 @@ class MainWindow(QMainWindow):
 
     def open_uploader(self):
         if self._uploader is None:
-            self._uploader = UploadWidget(self.original_vm.id)
+            self._uploader = UploadWidget(product_id=self.original_vm.id if self.original_vm else None,
+                                          on_uploaded=self.handle_uploaded_image, on_staged=self.handle_staged_image)
             self._uploader.setAttribute(Qt.WA_DeleteOnClose, True)
             self._uploader.destroyed.connect(lambda: setattr(self, "_uploader", None))
 
@@ -365,7 +368,7 @@ class MainWindow(QMainWindow):
             "packing": self.ui.packing_LineEdit.text(),
             "customers": self.get_all_customers(),
             "quote": self.get_all_quotes(),
-            "imgs": [],  # populate from image selector or OSS hook
+            "imgs": [i["oss_key"] for i in self.draft.imgs] if self.draft else [],
             "tags": self.get_all_tags(),
             "locked_by": None,
             "locked_timestamp": None,
@@ -373,6 +376,10 @@ class MainWindow(QMainWindow):
         }
 
         new_vm = self.pm.create_product(data)
+
+        for img in self.draft.imgs:
+            select_and_upload_image(img["temp"], new_vm.id, img["key_name"])
+            os.remove(img["temp"])
         return new_vm
     
     def remove_widget_from_layout(self, layout, widget):
@@ -476,6 +483,35 @@ class MainWindow(QMainWindow):
             quote_list.append(quote_dict)
 
         return quote_list
+
+    def new_form(self):
+        self.clear_fields()
+        self.draft = ProductDraft()
+        self.original_vm = None
+        return self.draft
+    
+    def handle_uploaded_image(self, oss_key: str) -> None:
+        """Existing product: upload already succeeded, so pull fresh data."""
+        if not oss_key or not self.original_vm:
+            return
+
+        # Re-fetch the product so caches and galleries stay in sync.
+        self.original_vm = self.pm.fetch_product(self.original_vm)
+        self.display_selected()
+
+    def handle_staged_image(self, temp_path: str, key_name: str) -> None:
+        """New product: keep the resized file + future OSS key until we have an ID."""
+        if not temp_path or not key_name:
+            return
+
+        if self.draft is None:
+            self.draft = ProductDraft()
+
+        self.draft.imgs.append({"temp": temp_path, "key_name": key_name, "oss_key": f"uploads/{key_name}"})
+
+        local_paths = [img["temp"] for img in self.draft.imgs if img.get("temp")]
+        self.img_loader.load_local_paths(local_paths)
+
 
     def clear_fields(self):
         self.ui.ref_num_LineEdit.clear()

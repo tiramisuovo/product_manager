@@ -472,7 +472,7 @@ def test_update_lock_status_api(test_client):
     assert data["locked_timestamp"] is None
 
 
-"""
+
 def test_list_images_api(test_client_and_db):
     client, conn, cursor = test_client_and_db
     payload = sample_product_payload()
@@ -487,4 +487,4 @@ def test_list_images_api(test_client_and_db):
 
     assert isinstance(data, list)
     assert data[0].startswith("https://fake-oss.com/")
-    """
+

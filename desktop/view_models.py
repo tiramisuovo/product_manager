@@ -2,6 +2,7 @@ import os, json
 from backend.models import Product
 from desktop.client import *
 from typing import Any
+from desktop.product_draft import ProductDraft
 
 class ProductVM():
     def __init__ (self, data: dict | Product):
@@ -27,6 +28,10 @@ class ProductVM():
         self.locked_timestamp = data.get("locked_timestamp")
         self.last_updated = data.get("last_updated")
 
+    @classmethod
+    def from_draft(cls, draft: "ProductDraft") -> "ProductVM":
+        return cls(draft.to_payload())
+
     def to_create_payload (self) -> dict:
         return {
             "ref_num": self.ref_num,
@@ -43,7 +48,7 @@ class ProductVM():
             "quote": [{"customer_name": q["customer_name"],
                       "quote": q["quote"],
                       "remark": q["remark"]} for q in self.quotes],
-            "imgs": [i["img"] for i in self.imgs],
+            "imgs": self.imgs,
             "tags": self.tags,
             "locked_by": self.locked_by,
             "locked_timestamp": self.locked_timestamp,
