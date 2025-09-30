@@ -200,5 +200,17 @@ gui.py
 ui_models.py
 manage_NOT FINISHED.py
 product_manager.ui
-frontend/
 .history/
+
+
+# --- Frontend display rules ---
+# Ignore everything in display_frontend
+/frontend/display_frontend/*
+# Ignore node_modules anywhere under frontend
+frontend/**/node_modules/
+
+# But keep these files/folders
+!/frontend/display_frontend/src
+!/frontend/display_frontend/src/**
+!/frontend/display_frontend/package.json
+!/frontend/display_frontend/package-lock.json
