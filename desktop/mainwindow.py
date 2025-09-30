@@ -15,19 +15,63 @@ from desktop.upload_widget import *
 from desktop.image_loader import *
 from desktop.login_dialog import login
 
-import os, sys
+import os
+import sys
+from importlib import resources
+from io import StringIO
 from dotenv import load_dotenv
 
 def resource_path(relative_path: str):
     """Get absolute path to resource (for dev and PyInstaller)"""
-    if hasattr(sys, "_MEIPASS"):
-        return os.path.join(sys._MEIPASS, relative_path)
-    return os.path.join(os.path.abspath("."), relative_path)
+    base_path = getattr(sys, "_MEIPASS", None)
+    if not base_path:
+        try:
+            base_path = os.path.dirname(os.path.abspath(__file__))
+        except NameError:
+            base_path = os.path.dirname(os.path.abspath(sys.argv[0]))
+    return os.path.join(base_path, relative_path)
 
-# Load .env once at startup
-env_path = resource_path(".env")
-load_dotenv(env_path)
 
+def _load_env_file() -> bool:
+    env_path = resource_path(".env")
+    loaded = False
+
+    if os.path.exists(env_path):
+        loaded = load_dotenv(env_path)
+
+    if not loaded:
+        exe_env = None
+        if getattr(sys, "frozen", False):
+            exe_env = os.path.join(os.path.dirname(sys.executable), ".env")
+        else:
+            exe_env = os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), ".env")
+        if exe_env and os.path.exists(exe_env):
+            loaded = load_dotenv(exe_env, override=False)
+
+    if not loaded:
+        try:
+            with resources.files("desktop").joinpath(".env").open("r", encoding="utf-8") as handle:
+                loaded = load_dotenv(stream=StringIO(handle.read()), override=False)
+        except (FileNotFoundError, ModuleNotFoundError, AttributeError):
+            loaded = False
+
+    if not loaded:
+        import pkgutil
+
+        try:
+            data = pkgutil.get_data("desktop", ".env")
+        except Exception:
+            data = None
+        if data:
+            loaded = load_dotenv(stream=StringIO(data.decode("utf-8")), override=False)
+
+    if not loaded:
+        loaded = load_dotenv()
+
+    return loaded
+
+
+_load_env_file()
 
 class BlockVerticalWheel(QObject):
     def eventFilter(self, obj, event):
@@ -39,66 +83,99 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.ui = Ui_MainWindow()
-        self.ui.setupUi(self)        
-        # Make sure centralwidget has no limits
-        self.centralWidget().setMaximumSize(QSize(16777215, 16777215))
-        self.centralWidget().setMinimumSize(QSize(0, 0))
+        self.ui.setupUi(self)
 
-        # Force tabWidget to expand
-        self.ui.tabWidget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.ui.tabWidget.setMinimumSize(QSize(0, 0))
-        self.ui.tabWidget.setMaximumSize(QSize(16777215, 16777215))
+        self._configure_window()
 
-        # Same for edit_mode tab
-        self.ui.edit_mode.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.ui.edit_mode.setMinimumSize(QSize(0, 0))
-        self.ui.edit_mode.setMaximumSize(QSize(16777215, 16777215))
-
-        # And display_mode tab for consistency
-        self.ui.display_mode.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.ui.display_mode.setMinimumSize(QSize(0, 0))
-        self.ui.display_mode.setMaximumSize(QSize(16777215, 16777215))
-
-        # Finally, launch maximized
-        self.showMaximized()
-        self.setMinimumSize(1000, 700)
-
-        self.setWindowTitle("Product Manager")
         self.pm = ProductManager()
-        
         self.user = self.ask_user_name()
 
         self._uploader = None
-    
+        self.staged_image: list[dict[str, str]] = []
+        self.original_vm = None
+
+        self.blocker = BlockVerticalWheel()
+        self._setup_scroll_containers()
+        self._setup_image_loaders()
+        self._configure_read_only_fields()
+        self._configure_quote_table()
+        self._connect_signals()
+
+    def _configure_window(self) -> None:
+        max_size = QSize(16777215, 16777215)
+        min_size = QSize(0, 0)
+
+        central = self.centralWidget()
+        if central is not None:
+            central.setMaximumSize(max_size)
+            central.setMinimumSize(min_size)
+
+        for widget in (self.ui.tabWidget, self.ui.edit_mode, self.ui.display_mode):
+            widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+            widget.setMinimumSize(min_size)
+            widget.setMaximumSize(max_size)
+
+        self.setWindowTitle("Product Manager")
+        self.setMinimumSize(1000, 700)
+        self.showMaximized()
+
+    def _setup_scroll_containers(self) -> None:
+        self.tag_layout = self._configure_flow_container(
+            self.ui.tag_container,
+            self.ui.scrollArea,
+        )
+        self.customer_layout = self._configure_flow_container(
+            self.ui.customer_container,
+            self.ui.scrollArea_2,
+        )
+
+    def _configure_flow_container(self, container, scroll_area):
+        layout = container.layout()
+        layout.setAlignment(Qt.AlignLeft)
+        layout.setContentsMargins(5, 0, 5, 50)
+        layout.setSpacing(8)
+        container.setMinimumHeight(40)
+        container.setMaximumHeight(40)
+        scroll_area.setWidgetResizable(True)
+        scroll_area.viewport().installEventFilter(self.blocker)
+        return layout
+
+    def _setup_image_loaders(self) -> None:
+        thumb_size = QSize(220, 160)
+
+        self.img_loader = ImageLoader(self, thumb_size=thumb_size)
+        self.image_layout = self.ui.image_container.layout()
+        self.image_layout.addWidget(self.img_loader)
+        self.img_loader.list.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.img_loader.list.customContextMenuRequested.connect(self.show_image_menu)
+
+        self.img_loader_2 = ImageLoader(self, thumb_size=thumb_size)
+        self.image_layout_2 = self.ui.image_container_2.layout()
+        self.image_layout_2.addWidget(self.img_loader_2)
+        self.img_loader_2.list.setContextMenuPolicy(Qt.NoContextMenu)
+
+    def _configure_read_only_fields(self) -> None:
+        for widget in (
+            self.ui.ref_num_LineEdit_2,
+            self.ui.name_LineEdit_2,
+            self.ui.price_usd_LineEdit_2,
+        ):
+            widget.setReadOnly(True)
+
+    def _configure_quote_table(self) -> None:
+        self.ui.quote_tableWidget.setColumnCount(4)
+        self.ui.quote_tableWidget.setHorizontalHeaderLabels(
+            ["Customer", "Quote", "Remark", "ID"]
+        )
+        self.ui.quote_tableWidget.setColumnHidden(3, True)
+        self.ui.quote_tableWidget.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.ui.quote_tableWidget.customContextMenuRequested.connect(self.show_quote_menu)
+
+    def _connect_signals(self) -> None:
         self.ui.search_PushButton.clicked.connect(self.search_tab1)
         self.ui.search_PushButton_2.clicked.connect(self.search_tab2)
         self.ui.productlist_ListWidget.itemClicked.connect(self.display_selected)
         self.ui.listWidget_2.itemClicked.connect(self.display_tab2)
-
-        self.blocker = BlockVerticalWheel()
-
-        self.tag_layout = self.ui.tag_container.layout()
-
-        #tag_layout settings
-        self.tag_layout.setAlignment(Qt.AlignLeft)
-        self.tag_layout.setContentsMargins(5, 0, 5, 50)
-        self.tag_layout.setSpacing(8)
-        self.ui.tag_container.setMinimumHeight(40)
-        self.ui.tag_container.setMaximumHeight(40)
-        self.ui.scrollArea.setWidgetResizable(True)
-        self.ui.scrollArea.viewport().installEventFilter(self.blocker)
-
-        self.customer_layout = self.ui.customer_container.layout()
-
-        #customer_layout settings
-        self.customer_layout.setAlignment(Qt.AlignLeft)
-        self.customer_layout.setContentsMargins(5, 0, 5, 50)
-        self.customer_layout.setSpacing(8)
-        self.ui.customer_container.setMinimumHeight(40)
-        self.ui.customer_container.setMaximumHeight(40)
-        self.ui.scrollArea_2.setWidgetResizable(True)
-        self.ui.scrollArea_2.viewport().installEventFilter(self.blocker)
-
         self.ui.edit_pushButton.clicked.connect(self.edit_product)
         self.ui.newform_PushButton.clicked.connect(self.new_form)
         self.ui.add_PushButton.clicked.connect(self.add_product)
@@ -107,30 +184,6 @@ class MainWindow(QMainWindow):
         self.ui.add_quote_pushButton.clicked.connect(self.add_quote)
         self.ui.delete_pushButton.clicked.connect(self.delete_product)
         self.ui.upload_img_pushButton.clicked.connect(self.open_uploader)
-
-        self.ui.quote_tableWidget.setColumnCount(4)
-        self.ui.quote_tableWidget.setHorizontalHeaderLabels(["Customer", "Quote", "Remark", "ID"])
-        self.ui.quote_tableWidget.setColumnHidden(3, True)
-        self.ui.quote_tableWidget.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.ui.quote_tableWidget.customContextMenuRequested.connect(self.show_quote_menu)
-        
-        self.img_loader = ImageLoader(self, thumb_size=QSize(220, 160))
-        self.image_layout = self.ui.image_container.layout()
-        self.image_layout.addWidget(self.img_loader)
-        self.img_loader.list.setContextMenuPolicy(Qt.CustomContextMenu)
-        self.img_loader.list.customContextMenuRequested.connect(self.show_image_menu)
-
-        self.img_loader_2 = ImageLoader(self, thumb_size=QSize(220, 160))
-        self.image_layout_2 = self.ui.image_container_2.layout()
-        self.image_layout_2.addWidget(self.img_loader_2)
-        self.img_loader_2.list.setContextMenuPolicy(Qt.NoContextMenu)
-
-        self.ui.ref_num_LineEdit_2.setReadOnly(True)
-        self.ui.name_LineEdit_2.setReadOnly(True)
-        self.ui.price_usd_LineEdit_2.setReadOnly(True)
-        
-        self.staged_image: list[dict[str, str]] = []
-        self.original_vm = None
 
     def ask_user_name(self) -> str:
         dialog = login(self)

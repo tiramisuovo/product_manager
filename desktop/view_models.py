@@ -2,7 +2,6 @@ import os, json
 from backend.models import Product
 from desktop.client import *
 from typing import Any
-from desktop.product_draft import ProductDraft
 from typing import TYPE_CHECKING
 
 class ProductVM():
@@ -28,10 +27,6 @@ class ProductVM():
         self.locked_by = data.get("locked_by")
         self.locked_timestamp = data.get("locked_timestamp")
         self.last_updated = data.get("last_updated")
-
-    @classmethod
-    def from_draft(cls, draft: "ProductDraft") -> "ProductVM":
-        return cls(draft.to_payload())
 
     def to_create_payload (self) -> dict:
         return {

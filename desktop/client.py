@@ -1,20 +1,75 @@
-import requests, logging
-import os, sys
+﻿import logging
+import os
+import sys
+from importlib import resources
+from io import StringIO
+
+import requests
 from dotenv import load_dotenv
+
 
 def resource_path(relative_path: str):
     """Get absolute path to resource (works for dev & PyInstaller exe)"""
-    if hasattr(sys, "_MEIPASS"):
-        return os.path.join(sys._MEIPASS, relative_path)
-    return os.path.join(os.path.abspath("."), relative_path)
+    base_path = getattr(sys, "_MEIPASS", None)
+    if not base_path:
+        try:
+            base_path = os.path.dirname(os.path.abspath(__file__))
+        except NameError:
+            base_path = os.path.dirname(os.path.abspath(sys.argv[0]))
+    return os.path.join(base_path, relative_path)
 
-# explicitly load the bundled .env
-env_path = resource_path(".env")
-load_dotenv(env_path)
+
+def _load_env_file() -> bool:
+    """Attempt to load the bundled .env; fall back to default lookup."""
+    env_path = resource_path(".env")
+    loaded = False
+
+    if os.path.exists(env_path):
+        loaded = load_dotenv(env_path)
+
+    if not loaded:
+        exe_env = None
+        if getattr(sys, "frozen", False):
+            exe_env = os.path.join(os.path.dirname(sys.executable), ".env")
+        else:
+            exe_env = os.path.join(os.path.dirname(os.path.abspath(sys.argv[0])), ".env")
+        if exe_env and os.path.exists(exe_env):
+            loaded = load_dotenv(exe_env, override=False)
+
+    if not loaded:
+        try:
+            with resources.files("desktop").joinpath(".env").open("r", encoding="utf-8") as handle:
+                loaded = load_dotenv(stream=StringIO(handle.read()), override=False)
+        except (FileNotFoundError, ModuleNotFoundError, AttributeError):
+            loaded = False
+
+    if not loaded:
+        import pkgutil
+
+        try:
+            data = pkgutil.get_data("desktop", ".env")
+        except Exception:
+            data = None
+        if data:
+            loaded = load_dotenv(stream=StringIO(data.decode("utf-8")), override=False)
+
+    if not loaded:
+        loaded = load_dotenv()
+
+    return loaded
+
+def _require_env(name: str) -> str:
+    value = os.getenv(name)
+    if value is None or not value.strip():
+        raise RuntimeError(
+            f"Missing required environment variable '{name}'. Ensure it exists in the packaged .env file."
+        )
+    return value.strip()
 
 
-BASE_URL = os.getenv("BASE_URL")
+_load_env_file()
 
+BASE_URL = _require_env("BASE_URL")
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
