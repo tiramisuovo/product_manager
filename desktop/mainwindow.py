@@ -624,6 +624,10 @@ class MainWindow(QMainWindow):
         self.clear_layout(self.tag_layout)
         self.clear_layout(self.customer_layout)
         self.ui.quote_tableWidget.setRowCount(0)
+        self.img_loader.clear_list()
+        self.img_loader_2.clear_list()
+        self.ui.productlist_ListWidget.clearSelection()
+        self.ui.listWidget_2.clearSelection()
 
     def delete_product(self):
         item = self.ui.productlist_ListWidget.currentItem()
