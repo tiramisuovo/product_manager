@@ -42,7 +42,12 @@ function ProductDetails({ product, onClose }) {
         {/* Product info */}
         <div className="space-y-2 text-slate-700">
           <p><span className="font-semibold">Ref Number:</span> {product?.ref_num}</p>
-          <p><span className="font-semibold">Tags:</span> {product?.tags}</p>
+          <p><span className="font-semibold">
+          Tags:{" "}</span>
+          {Array.isArray(product.tags)
+            ? product.tags.map((tag) => tag.tag_name).join(", ")
+            : product.tags}
+          </p>
           <p><span className="font-semibold">Barcode:</span> {product?.barcode}</p>
           <p><span className="font-semibold">Pcs/inner box:</span> {product?.pcs_innerbox}</p>
           <p><span className="font-semibold">Pcs/ctn:</span> {product?.pcs_ctn}</p>
